@@ -1,0 +1,11 @@
+_ > nanoagent.plugin.v0001.ProductConfig:
+tagline: "See which log messages spiked, without reading raw lines"
+summary: "Generates a seeded application log with a planted error spike, then collapses any window of it into message templates by masking IDs, addresses, numbers and quoted strings, so an agent can compare windows and spot the pattern that took off during an incident."
+highlights:
+  - "Simple masking rules, written down, so every template count can be checked by hand"
+  - "Works offline: the same seed always gives the same log, byte for byte"
+  - "Compare two windows to find the error that grew the most"
+steps:
+  - "Generate a log from a seed and a line count"
+  - "Mine the templates of a window of lines"
+  - "Ask the agent which ERROR template spiked in the second half"

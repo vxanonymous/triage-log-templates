@@ -1,0 +1,53 @@
+_ > nanoagent.plugin.v0001.ManifestConfig:
+id: triage-log-templates
+name: Triage Log Templates
+version: 0.1.0
+status: ready
+spec: nanoagent.plugin/v0001
+
+runtime > nanoagent.plugin.v0001.RuntimeConfig:
+  type: mcp_stdio
+  command: [uv, run, --frozen, python, -m, plugin]
+
+permissions > nanoagent.plugin.v0001.PermissionsConfig:
+  network > nanoagent.plugin.v0001.NetworkConfig:
+    hosts: []
+  filesystem > nanoagent.plugin.v0001.FilesystemConfig:
+    write: [workspace]
+
+# One entry per contract.Tool; its input and output classes are contract.TOOLS's.
+tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
+  generate_log:
+    description: Write a seeded application log with one planted error spike to <destination>/app-<seed>-<lines>.log
+  mine_templates:
+    description: >-
+      Collapse a window of log lines into templates and count them. Each line's template is 'LEVEL service
+      masked-message', where the message is masked in this order: double-quoted strings become "<STR>", UUIDs become
+      <UUID>, IPv4 addresses with an optional :port become <IP>, 0x-prefixed hex numbers and standalone runs of 8 or
+      more hex characters holding a digit become <HEX>, and then every whitespace-separated token still holding a
+      digit becomes <NUM>
+
+# One entry per contract.Task; its input and output classes are contract.TASKS's.
+tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
+  generate-log:
+    description: Generate a seeded application log
+    runner: tool
+    tools: [generate_log]
+    reference: null
+    instructions: Write the application log for the seed and line count into the destination folder and return its path, line count and SHA-256.
+  mine-log-templates:
+    description: Count the templates in a window of a log
+    runner: tool
+    tools: [mine_templates]
+    reference: null
+    instructions: Mask the variable fields of every line from start_line to end_line, count each resulting template, and return the top templates by count, ties by template text.
+  find-spiking-error:
+    description: Find the ERROR template that spiked during an incident
+    runner: agent
+    tools: [generate_log, mine_templates]
+    reference: null
+    instructions: |-
+      Generate the log for the seed and line count with generate_log, destination logs.
+      Let half be lines // 2 (integer division). Call mine_templates on that file twice, each with top 200: once with start_line 1 and end_line half, and once with start_line half + 1 and end_line lines.
+      Consider only templates that start with "ERROR ". For each, compute its second-window count minus its first-window count, counting a template missing from a window as 0. Pick the template with the largest increase; on a tie, pick the one whose template text sorts first.
+      Submit the file as generate_log returned it, the template exactly as mine_templates wrote it, first_half_count as its count in the first window and second_half_count as its count in the second window.
